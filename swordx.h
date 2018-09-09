@@ -10,3 +10,4 @@ struct args {
     char *log;
     char *output;
 };
+extern struct args *params;

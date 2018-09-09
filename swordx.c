@@ -4,15 +4,14 @@
 #include <getopt.h>
 #include <ctype.h>
 #include <stdbool.h>
-#include <errno.h>
 #include <dirent.h>
+#include <errno.h>
 #include "bintree.h"
 #include "swordx.h"
 
-bool run(struct t_node *, struct args *params, int flag);
-bool readWord(FILE *file, struct t_node *);
+void run(struct t_node *, struct args *params, int flag);
 FILE *getFile(char *path); /* Get file from path */
-void getFileFromDir(const char *name, int indent);
+void scanDir(const char *name, struct t_node *root);
 int isFlagSet(int bitoption, int flag);
 void printUsage();
 void printHelp();
@@ -28,54 +27,33 @@ FILE *getFile(char *path) {
     return f;
 }
 
-bool readWord(FILE *f, struct t_node *root) {
-    char *word;
-    int n;
-    errno = 0;
-
-    do {
-        n = fscanf(f, "%ms", &word);
-        if (n == 1) {
-            printf("Word: %s\n", word);
-            root = addtree(root, word);
-            free(word);
-        } else if (errno != 0)
-            perror("Error in scanf");
-    } while (n != EOF);
-    treePrint(root);
-    return true;
-}
-
-bool run(struct t_node *root, struct args *params, int flag) {
-    FILE *f;
-    // Check if recursive is on
+void run(struct t_node *root, struct args *params, int flag) {
     if ((isFlagSet(recursive_flag, flag)) != 0)
-        getFileFromDir(".", 0);
-    f = getFile("./test/test.txt");
-    if ((readWord(f, root)) == true)
-        fclose(f);
+        scanDir("./test", root);
     return true;
 }
 
-void getFileFromDir(const char *name, int indent)
-{
+
+void scanDir(const char *name, struct t_node *root) {
+    FILE *f;
     DIR *dir;
     struct dirent *entry;
 
     if (!(dir = opendir(name)))
-        return;
-
+        printf("Problem opening dir");
+    
     while ((entry = readdir(dir)) != NULL) {
-        if (entry->d_type == DT_DIR) {
             char path[1024];
-            if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
-                continue;
-            snprintf(path, sizeof(path), "%s/%s", name, entry->d_name);
-            printf("%*s[%s]\n", indent, "", entry->d_name);
-            getFileFromDir(path, indent + 2);
-        } else {
-            printf("%*s- %s\n", indent, "", entry->d_name);
-        }
+            if (entry->d_type == DT_DIR) {
+                if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
+                    continue;
+                sprintf(path, "%s/%s", name, entry->d_name);
+                scanDir(path, root);
+            } else {
+                sprintf(path, "%s/%s", name, entry->d_name);
+                f = getFile(path);
+                root = scanFile(f, root);
+            }
     }
     closedir(dir);
 }
@@ -131,16 +109,14 @@ int main (int argc, char **argv) {
 			}
 	}
     // Remaining arguments (inputs)
-    printf("flag opt: %d\n", flag);
     if (optind < argc) {
-        printf("OPTIND variable: %d\n", optind);
-        printf("other arguments, probably dir:\n");
+        printf("INPUTS\n");
         while (optind < argc) 
             printf("%s\n", argv[optind++]);
     }
-    if ((run(root, params, flag)) == true) 
-        free(root);
+    run(root, params, flag);
     free(params);
+    exit(EXIT_SUCCESS);
 }
 
 void printUsage () {
