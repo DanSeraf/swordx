@@ -26,8 +26,9 @@ typedef const struct args {
 
 void run(args *option, int flag);
 FILE *getFile(char *path); /* Get file from path */
-void scanFile(FILE *f, t_node **root);
+void scanFile(FILE *f, t_node **root, int flag);
 void scanDir(const char *name, t_node **root, int flag);
+bool isWordAlpha(char *word);
 int isFlagSet(int bitoption, int flag);
 void printUsage();
 void printHelp();
@@ -51,8 +52,16 @@ void run(args *option, int flag) {
     free(root);
 }
 
+bool isWordAlpha(char *w) {
+    do {
+        if (isalpha(*w) == 0)
+            return false;
+    } while (*++w != '\0');
+    return true;
+}
+
 // Scan file to add word inside the binary tree 
-void scanFile(FILE *f, t_node **root) {
+void scanFile(FILE *f, t_node **root, int flag) {
     char *word;
     int n;
     errno = 0;
@@ -60,6 +69,8 @@ void scanFile(FILE *f, t_node **root) {
         n = fscanf(f, "%ms", &word);
         if (n == 1) {
             printf("Word: %s\n", word);
+            if (isFlagSet(alpha_flag, flag) && !isWordAlpha(word))
+                continue;
             addToTree(root, word);
             free(word);
         } else if (errno != 0)
@@ -88,7 +99,7 @@ void scanDir(const char *name, t_node **root, int flag) {
                     sprintf(path, "%s/%s", name, entry->d_name);
                     printf("file path: %s\n",  entry->d_name);
                     f = getFile(path);
-                    scanFile(f, root);
+                    scanFile(f, root, flag);
                 }
         }
     closedir(dir);
