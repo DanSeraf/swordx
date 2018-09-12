@@ -1,15 +1,16 @@
 #ifndef BINTREE_H
 #define BINTREE_H
 
-struct t_node {
+typedef struct t_node {
     char *word;
     int count; /* occurrences */
     struct t_node *left;
     struct t_node *right;
-};
+} t_node;
 
-struct t_node *addToTree(struct t_node *root, char *word);    
-struct t_node *scanFile(FILE *file, struct t_node *root);
-void treePrint(struct t_node *);
+t_node** createTree();
+void addToTree(t_node **root, char *word);    
+void treePrint(t_node **root);
+void destroyTree(t_node *root);
 
 #endif

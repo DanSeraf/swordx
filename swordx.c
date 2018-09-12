@@ -6,12 +6,28 @@
 #include <stdbool.h>
 #include <dirent.h>
 #include <errno.h>
+#include <assert.h>
+#include <mcheck.h>
 #include "bintree.h"
-#include "swordx.h"
 
-void run(struct t_node *, struct args *params, int flag);
+#define recursive_flag  (1<<0)
+#define follow_flag     (1<<1)
+#define alpha_flag      (1<<2)
+#define sbo_flag        (1<<3)
+
+/* "const" struct to store options */
+typedef const struct args {
+    char *explude;
+    char *ignore;
+    char *log;
+    char *output;
+    unsigned int min;
+} args;
+
+void run(args *option, int flag);
 FILE *getFile(char *path); /* Get file from path */
-void scanDir(const char *name, struct t_node *root);
+void scanFile(FILE *f, t_node **root);
+void scanDir(const char *name, t_node **root, int flag);
 int isFlagSet(int bitoption, int flag);
 void printUsage();
 void printHelp();
@@ -27,44 +43,63 @@ FILE *getFile(char *path) {
     return f;
 }
 
-void run(struct t_node *root, struct args *params, int flag) {
-    if ((isFlagSet(recursive_flag, flag)) != 0)
-        scanDir("./test", root);
-    return true;
+void run(args *option, int flag) {
+    t_node **root = createTree();
+    scanDir("./test", root, flag);
+    treePrint(root);
+    destroyTree(*root);
+    free(root);
 }
 
+// Scan file to add word inside the binary tree 
+void scanFile(FILE *f, t_node **root) {
+    char *word;
+    int n;
+    errno = 0;
+    do {
+        n = fscanf(f, "%ms", &word);
+        if (n == 1) {
+            printf("Word: %s\n", word);
+            addToTree(root, word);
+            free(word);
+        } else if (errno != 0)
+            perror("Error in scanf");
+    } while (n != EOF);
+    fclose(f);
+}
 
-void scanDir(const char *name, struct t_node *root) {
+void scanDir(const char *name, t_node **root, int flag) {
     FILE *f;
     DIR *dir;
     struct dirent *entry;
 
     if (!(dir = opendir(name)))
-        printf("Problem opening dir");
+        perror("Problem opening dir");
     
     while ((entry = readdir(dir)) != NULL) {
-            char path[1024];
-            if (entry->d_type == DT_DIR) {
-                if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
-                    continue;
-                sprintf(path, "%s/%s", name, entry->d_name);
-                scanDir(path, root);
-            } else {
-                sprintf(path, "%s/%s", name, entry->d_name);
-                f = getFile(path);
-                root = scanFile(f, root);
-            }
-    }
+                char path[1024];
+                if (entry->d_type == DT_DIR && isFlagSet(recursive_flag, flag) != 0) {
+                    if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0) {
+                        sprintf(path, "%s/%s", name, entry->d_name);
+                        printf("dir path: %s\n", path);
+                        scanDir(path, root, flag);
+                    }
+                } else if (entry->d_type == DT_REG) {
+                    sprintf(path, "%s/%s", name, entry->d_name);
+                    printf("file path: %s\n",  entry->d_name);
+                    f = getFile(path);
+                    scanFile(f, root);
+                }
+        }
     closedir(dir);
 }
 
 
 int main (int argc, char **argv) {
+    mtrace();
     int opt = 0;
     int long_index = 0;
-    struct t_node *root = NULL;
-    struct args *params = NULL;
-    params = (struct args *) malloc(sizeof(struct args));
+    struct args *option = (struct args *) malloc(sizeof(struct args));
     int flag = 0; /* byte flag */
     
     static struct option long_options[] =
@@ -94,15 +129,15 @@ int main (int argc, char **argv) {
                 break;
             case 's': flag |= sbo_flag;
                 break;
-            case 'e': params->explude = strdup(optarg);
+            case 'e': option->explude = strdup(optarg);
                 break;
-            case 'm': params->min = atoi(optarg);
+            case 'm': option->min = atoi(optarg);
                 break; 
-            case 'i': params->ignore = strdup(optarg);
+            case 'i': option->ignore = strdup(optarg);
                 break; 
-            case 'l': params->log = strdup(optarg);
+            case 'l': option->log = strdup(optarg);
                 break;
-            case 'o': params->output = strdup(optarg);
+        case 'o': option->output = strdup(optarg);
                 break;
             default: printUsage();
 				exit(EXIT_FAILURE);
@@ -114,8 +149,9 @@ int main (int argc, char **argv) {
         while (optind < argc) 
             printf("%s\n", argv[optind++]);
     }
-    run(root, params, flag);
-    free(params);
+    run(option, flag);
+    free(option);
+    muntrace();
     exit(EXIT_SUCCESS);
 }
 
