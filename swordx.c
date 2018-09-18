@@ -8,6 +8,7 @@
 #include <errno.h>
 #include <assert.h>
 #include <mcheck.h>
+#include <locale.h>
 #include "bintree.h"
 #include "linkedlist.h"
 
@@ -16,8 +17,8 @@
 #define alpha_flag      (1<<2)
 #define sbo_flag        (1<<3)
 
-/* "const" struct to store options */
-typedef const struct args {
+// struct to store options
+typedef struct args {
     char *explude;
     char *ignore;
     char *log;
@@ -25,19 +26,21 @@ typedef const struct args {
     unsigned int min;
 } args;
 
-void run(args *option, int flag);
-FILE *getFile(char *path); /* Get file from path */
-void scanFile(FILE *f, t_node **root, int flag);
-void scanDir(const char *name, t_node **root, int flag);
+void run(args *option, unsigned int flag);
+FILE *getFile(char *path); 
+void scanFile(FILE *f, t_node **root, unsigned int flag);
+void scanDir(const char *name, t_node **root, unsigned int flag);
 bool isWordAlpha(char *word);
-int isFlagSet(int bitoption, int flag);
+int isFlagSet(unsigned int bitoption, unsigned int flag);
 void printUsage();
 void printHelp();
 
-int isFlagSet(int bitopt, int flag) {
+// if return not equal to zero, flag is set
+int isFlagSet(unsigned int bitopt, unsigned int flag) {
     return flag & bitopt;
 }
 
+// get file from a specific path
 FILE *getFile(char *path) {
     FILE *f = fopen(path, "r");
     if (f == NULL)
@@ -45,9 +48,9 @@ FILE *getFile(char *path) {
     return f;
 }
 
-void run(args *option, int flag) {
+void run(args *option, unsigned int flag) {
     t_node **root = createTree();
-    scanDir("./test", root, flag);
+    scanDir(".", root, flag);
     treePrint(*root);
     if (isFlagSet(sbo_flag, flag) != 0) {
         l_list **head = createList();
@@ -61,6 +64,7 @@ void run(args *option, int flag) {
     free(root);
 }
 
+// check if word contains only alphabetic characters
 bool isWordAlpha(char *w) {
     do {
         if (isalpha(*w) == 0)
@@ -70,7 +74,7 @@ bool isWordAlpha(char *w) {
 }
 
 // Scan file to add word inside the binary tree 
-void scanFile(FILE *f, t_node **root, int flag) {
+void scanFile(FILE *f, t_node **root, unsigned int flag) {
     char *word;
     int n;
     errno = 0;
@@ -88,7 +92,9 @@ void scanFile(FILE *f, t_node **root, int flag) {
     fclose(f);
 }
 
-void scanDir(const char *name, t_node **root, int flag) {
+// check every file in directory, if recursive flag is set then
+// check the dir recursively
+void scanDir(const char *name, t_node **root, unsigned int flag) {
     FILE *f;
     DIR *dir;
     struct dirent *entry;
@@ -119,7 +125,8 @@ int main (int argc, char **argv) {
     int opt = 0;
     int long_index = 0;
     struct args *option = (struct args *) malloc(sizeof(struct args));
-    int flag = 0; /* byte flag */
+    unsigned int flag = 0; /* byte flag */
+    setlocale(LC_ALL, "");
     
     static struct option long_options[] =
 	{
@@ -156,7 +163,7 @@ int main (int argc, char **argv) {
                 break; 
             case 'l': option->log = strdup(optarg);
                 break;
-        case 'o': option->output = strdup(optarg);
+            case 'o': option->output = strdup(optarg);
                 break;
             default: printUsage();
 				exit(EXIT_FAILURE);
