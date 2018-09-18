@@ -47,13 +47,15 @@ FILE *getFile(char *path) {
 
 void run(args *option, int flag) {
     t_node **root = createTree();
-    scanDir(".", root, flag);
+    scanDir("./test", root, flag);
     treePrint(*root);
     if (isFlagSet(sbo_flag, flag) != 0) {
         l_list **head = createList();
         addToList(*root, head);
         sortByOccurrences(head);
         printList(*head);
+        destroyList(*head);
+        free(head);
     }
     destroyTree(*root);
     free(root);
@@ -79,6 +81,7 @@ void scanFile(FILE *f, t_node **root, int flag) {
             if (isFlagSet(alpha_flag, flag) && !isWordAlpha(word))
                 continue;
             addToTree(root, word);
+            free(word);
         } else if (errno != 0)
             perror("Error in scanf");
     } while (n != EOF);

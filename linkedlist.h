@@ -11,5 +11,6 @@ l_list **createList();
 void push(l_list **head, char *word, int occurrences);
 void sortByOccurrences(l_list **head);
 void printList(l_list *head);
+void destroyList(l_list *head);
 
 #endif

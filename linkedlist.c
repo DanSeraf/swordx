@@ -78,3 +78,14 @@ void printList(l_list *h) {
         h = h->next;
     }
 }
+
+void destroyList(l_list *h) {
+    l_list *curr = h;
+    l_list *next;
+    
+    while (curr != NULL) {
+        next = curr->next;
+        free(curr);
+        curr = next;
+    }
+}
