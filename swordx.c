@@ -9,6 +9,7 @@
 #include <assert.h>
 #include <mcheck.h>
 #include "bintree.h"
+#include "linkedlist.h"
 
 #define recursive_flag  (1<<0)
 #define follow_flag     (1<<1)
@@ -46,8 +47,14 @@ FILE *getFile(char *path) {
 
 void run(args *option, int flag) {
     t_node **root = createTree();
-    scanDir("./test", root, flag);
-    treePrint(root);
+    scanDir(".", root, flag);
+    treePrint(*root);
+    if (isFlagSet(sbo_flag, flag) != 0) {
+        l_list **head = createList();
+        addToList(*root, head);
+        sortByOccurrences(head);
+        printList(*head);
+    }
     destroyTree(*root);
     free(root);
 }
@@ -72,7 +79,6 @@ void scanFile(FILE *f, t_node **root, int flag) {
             if (isFlagSet(alpha_flag, flag) && !isWordAlpha(word))
                 continue;
             addToTree(root, word);
-            free(word);
         } else if (errno != 0)
             perror("Error in scanf");
     } while (n != EOF);
@@ -107,7 +113,6 @@ void scanDir(const char *name, t_node **root, int flag) {
 
 
 int main (int argc, char **argv) {
-    mtrace();
     int opt = 0;
     int long_index = 0;
     struct args *option = (struct args *) malloc(sizeof(struct args));
@@ -162,7 +167,6 @@ int main (int argc, char **argv) {
     }
     run(option, flag);
     free(option);
-    muntrace();
     exit(EXIT_SUCCESS);
 }
 
