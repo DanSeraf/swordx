@@ -10,6 +10,7 @@ typedef struct l_list {
 l_list **createList();
 void push(l_list **head, char *word, int occurrences);
 void sortByOccurrences(l_list **head);
+void writeList(l_list *head, FILE *f);
 void printList(l_list *head);
 void destroyList(l_list *head);
 

@@ -8,7 +8,6 @@
 #include <errno.h>
 #include <assert.h>
 #include <mcheck.h>
-#include <locale.h>
 #include "bintree.h"
 #include "linkedlist.h"
 
@@ -17,7 +16,12 @@
 #define alpha_flag      (1<<2)
 #define sbo_flag        (1<<3)
 
-// struct to store options
+#define WORDCLASS "a-zA-Z0-9"
+
+// return value are nonzero if flag is set
+#define ISFLAGSET(bitopt, flag) (flag & bitopt)
+
+// struct to store optionss
 typedef struct args {
     char *explude;
     char *ignore;
@@ -26,19 +30,15 @@ typedef struct args {
     unsigned int min;
 } args;
 
-void run(args *option, unsigned int flag);
+void run(args *options, unsigned int flag);
 FILE *getFile(char *path); 
-void scanFile(FILE *f, t_node **root, unsigned int flag);
-void scanDir(const char *name, t_node **root, unsigned int flag);
+FILE *getoutFile(char *filename);
+char *cleanWord(char *word);
+void scanFile(FILE *f, t_node **root, args *options, unsigned int flag);
+void scanDir(const char *name, t_node **root, args *options, unsigned int flag);
 bool isWordAlpha(char *word);
-int isFlagSet(unsigned int bitoption, unsigned int flag);
-void printUsage();
-void printHelp();
-
-// if return not equal to zero, flag is set
-int isFlagSet(unsigned int bitopt, unsigned int flag) {
-    return flag & bitopt;
-}
+void printUsage(void);
+void printHelp(void);
 
 // get file from a specific path
 FILE *getFile(char *path) {
@@ -48,15 +48,26 @@ FILE *getFile(char *path) {
     return f;
 }
 
-void run(args *option, unsigned int flag) {
+FILE *getoutFile(char *fname) {
+    FILE *f = fopen(fname, "ab+");
+    if (f == NULL)
+        perror("Error reading file");
+    return f;
+}
+
+void run(args *options, unsigned int flag) {
+    FILE *outfile;
     t_node **root = createTree();
-    scanDir(".", root, flag);
-    treePrint(*root);
-    if (isFlagSet(sbo_flag, flag) != 0) {
+    scanDir("./test", root, options, flag);
+    outfile = getoutFile(options->output != NULL ? options->output : "swordx.out");
+    if (ISFLAGSET(sbo_flag, flag) == 0)
+        writeTree(*root, outfile);
+    else {
         l_list **head = createList();
         addToList(*root, head);
         sortByOccurrences(head);
-        printList(*head);
+        writeList(*head, outfile);
+        //printList(*head);
         destroyList(*head);
         free(head);
     }
@@ -74,18 +85,22 @@ bool isWordAlpha(char *w) {
 }
 
 // Scan file to add word inside the binary tree 
-void scanFile(FILE *f, t_node **root, unsigned int flag) {
+void scanFile(FILE *f, t_node **root, args *opt, unsigned int flag) {
     char *word;
     int n;
     errno = 0;
     do {
-        n = fscanf(f, "%ms", &word);
+        n = fscanf(f, "%m["WORDCLASS"]", &word);
         if (n == 1) {
             printf("Word: %s\n", word);
-            if (isFlagSet(alpha_flag, flag) && !isWordAlpha(word))
+            if ((ISFLAGSET(alpha_flag, flag) && !isWordAlpha(word)) || strlen(word) < opt->min) {
+                free(word);
+                n = fscanf(f, "%*[^"WORDCLASS"]");
                 continue;
+            }
             addToTree(root, word);
             free(word);
+            n = fscanf(f, "%*[^"WORDCLASS"]");
         } else if (errno != 0)
             perror("Error in scanf");
     } while (n != EOF);
@@ -94,7 +109,7 @@ void scanFile(FILE *f, t_node **root, unsigned int flag) {
 
 // check every file in directory, if recursive flag is set then
 // check the dir recursively
-void scanDir(const char *name, t_node **root, unsigned int flag) {
+void scanDir(const char *name, t_node **root, args *opt, unsigned int flag) {
     FILE *f;
     DIR *dir;
     struct dirent *entry;
@@ -104,17 +119,17 @@ void scanDir(const char *name, t_node **root, unsigned int flag) {
     
     while ((entry = readdir(dir)) != NULL) {
                 char path[1024];
-                if (entry->d_type == DT_DIR && isFlagSet(recursive_flag, flag) != 0) {
+                if (entry->d_type == DT_DIR && ISFLAGSET(recursive_flag, flag) != 0) {
                     if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0) {
                         sprintf(path, "%s/%s", name, entry->d_name);
                         printf("dir path: %s\n", path);
-                        scanDir(path, root, flag);
+                        scanDir(path, root, opt, flag);
                     }
                 } else if (entry->d_type == DT_REG) {
                     sprintf(path, "%s/%s", name, entry->d_name);
                     printf("file path: %s\n",  entry->d_name);
                     f = getFile(path);
-                    scanFile(f, root, flag);
+                    scanFile(f, root, opt, flag);
                 }
         }
     closedir(dir);
@@ -122,11 +137,13 @@ void scanDir(const char *name, t_node **root, unsigned int flag) {
 
 
 int main (int argc, char **argv) {
+    mtrace();
     int opt = 0;
     int long_index = 0;
-    struct args *option = (struct args *) malloc(sizeof(struct args));
+    struct args *options = (struct args *) malloc(sizeof(struct args));
+    //struct stack *inputs = (stack *) malloc(sizeof(stack));
+
     unsigned int flag = 0; /* byte flag */
-    setlocale(LC_ALL, "");
     
     static struct option long_options[] =
 	{
@@ -155,15 +172,15 @@ int main (int argc, char **argv) {
                 break;
             case 's': flag |= sbo_flag;
                 break;
-            case 'e': option->explude = strdup(optarg);
+            case 'e': options->explude = strdup(optarg);
                 break;
-            case 'm': option->min = atoi(optarg);
+            case 'm': options->min = atoi(optarg);
                 break; 
-            case 'i': option->ignore = strdup(optarg);
+            case 'i': options->ignore = strdup(optarg);
                 break; 
-            case 'l': option->log = strdup(optarg);
+            case 'l': options->log = strdup(optarg);
                 break;
-            case 'o': option->output = strdup(optarg);
+            case 'o': options->output = strdup(optarg);
                 break;
             default: printUsage();
 				exit(EXIT_FAILURE);
@@ -174,9 +191,10 @@ int main (int argc, char **argv) {
         printf("INPUTS\n");
         while (optind < argc) 
             printf("%s\n", argv[optind++]);
+            //TODO put elements inside the struct
     }
-    run(option, flag);
-    free(option);
+    run(options, flag);
+    free(options);
     exit(EXIT_SUCCESS);
 }
 

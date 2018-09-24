@@ -30,6 +30,15 @@ void addToTree(t_node **p, char *w) {
         addToTree(&(*p)->right, w);
 }
 
+void writeTree(t_node *p, FILE *f) {
+    if (p != NULL) {
+        writeTree(p->left, f);
+        fprintf(f, "%s %d\n", p->word, p->count);
+        writeTree(p->right, f);
+    }
+    fclose(f);
+}
+
 void treePrint(t_node *p) {
     if (p != NULL) {
         treePrint(p->left);

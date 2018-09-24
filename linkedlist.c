@@ -72,6 +72,14 @@ l_list *mergeList(l_list *a, l_list *b) {
     return sorted_list;
 }
 
+void writeList(l_list *h, FILE *f) {
+    while (h != NULL) {
+        fprintf(f, "%s %d\n", h->word, h->count);
+        h = h->next;
+    }
+    fclose(f);
+}
+
 void printList(l_list *h) {
     while (h != NULL) {
         printf("Word: %s, count: %d\n", h->word, h->count);
