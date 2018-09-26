@@ -152,13 +152,26 @@ void scanDir(const char *name, trie *root, args *opt, unsigned int flag) {
     closedir(dir);
 }
 
+void pushToLinkedStack(FILE *ef, stack **ex_head) {
+    char *explude_file_name = NULL;
+    ssize_t read;
+
+    while ((read = getline(&explude_file_name, ef)) != -1) {
+        push(ex_head, explude_file_name);
+    }
+
+    fclose(ef);
+    if (explude_file_name)
+        free(explude_file_name_name);
+}
+
 
 int main (int argc, char **argv) {
     mtrace();
     int opt = 0;
     int long_index = 0;
-    struct args *options = (struct args *) malloc(sizeof(struct args));
-    //struct stack *inputs = (stack *) malloc(sizeof(stack));
+    args *options = (struct args *) malloc(sizeof(struct args));
+    stack **ex_head = createStack();
 
     unsigned int flag = 0; /* byte flag */
     
@@ -204,6 +217,12 @@ int main (int argc, char **argv) {
 			}
 	}
     // Remaining arguments (inputs)
+    
+    
+    FILE *ef = getFile(options->explude);
+    pushToLinkedStack(*ef, ex_head);
+
+
     if (optind < argc) {
         printf("INPUTS\n");
         while (optind < argc) 
