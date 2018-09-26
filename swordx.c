@@ -8,6 +8,7 @@
 #include <errno.h>
 #include <assert.h>
 #include <mcheck.h>
+#include "trie.h"
 #include "bintree.h"
 #include "linkedlist.h"
 
@@ -33,9 +34,10 @@ typedef struct args {
 void run(args *options, unsigned int flag);
 FILE *getFile(char *path); 
 FILE *getoutFile(char *filename);
+static inline void consumeChar(int n, char *word, FILE *f);
 char *cleanWord(char *word);
-void scanFile(FILE *f, t_node **root, args *options, unsigned int flag);
-void scanDir(const char *name, t_node **root, args *options, unsigned int flag);
+void scanFile(FILE *f, trie *root, args *options, unsigned int flag);
+void scanDir(const char *name, trie *root, args *options, unsigned int flag);
 bool isWordAlpha(char *word);
 void printUsage(void);
 void printHelp(void);
@@ -55,11 +57,23 @@ FILE *getoutFile(char *fname) {
     return f;
 }
 
+static inline void consumeChar(int n, char *word, FILE *f) {
+    free(word);
+    n = fscanf(f, "%*[^"WORDCLASS"]");
+}
+
 void run(args *options, unsigned int flag) {
     FILE *outfile;
-    t_node **root = createTree();
+    char word[512];
+    //t_node **root = createTree();
+    trie *root = getNode();
     scanDir("./test", root, options, flag);
     outfile = getoutFile(options->output != NULL ? options->output : "swordx.out");
+    writeTrie(root, word, 0, outfile);
+    destroyTrie(root);
+    fclose(outfile);
+    
+    /*
     if (ISFLAGSET(sbo_flag, flag) == 0)
         writeTree(*root, outfile);
     else {
@@ -73,6 +87,7 @@ void run(args *options, unsigned int flag) {
     }
     destroyTree(*root);
     free(root);
+    */
 }
 
 // check if word contains only alphabetic characters
@@ -84,8 +99,8 @@ bool isWordAlpha(char *w) {
     return true;
 }
 
-// Scan file to add word inside the binary tree 
-void scanFile(FILE *f, t_node **root, args *opt, unsigned int flag) {
+// scan file to add word inside the binary tree 
+void scanFile(FILE *f, trie *root, args *opt, unsigned int flag) {
     char *word;
     int n;
     errno = 0;
@@ -93,14 +108,12 @@ void scanFile(FILE *f, t_node **root, args *opt, unsigned int flag) {
         n = fscanf(f, "%m["WORDCLASS"]", &word);
         if (n == 1) {
             printf("Word: %s\n", word);
-            if ((ISFLAGSET(alpha_flag, flag) && !isWordAlpha(word)) || strlen(word) < opt->min) {
-                free(word);
-                n = fscanf(f, "%*[^"WORDCLASS"]");
+            if ((ISFLAGSET(alpha_flag, flag) && !isWordAlpha(word)) || (opt->min != 0 && strlen(word) < opt->min)) {
+                consumeChar(n, word, f);
                 continue;
             }
-            addToTree(root, word);
-            free(word);
-            n = fscanf(f, "%*[^"WORDCLASS"]");
+            addToTrie(root, word);
+            consumeChar(n, word, f);
         } else if (errno != 0)
             perror("Error in scanf");
     } while (n != EOF);
@@ -109,7 +122,7 @@ void scanFile(FILE *f, t_node **root, args *opt, unsigned int flag) {
 
 // check every file in directory, if recursive flag is set then
 // check the dir recursively
-void scanDir(const char *name, t_node **root, args *opt, unsigned int flag) {
+void scanDir(const char *name, trie *root, args *opt, unsigned int flag) {
     FILE *f;
     DIR *dir;
     struct dirent *entry;

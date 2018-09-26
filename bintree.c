@@ -13,7 +13,7 @@ t_node **createTree(){
 }
 
 /* Add word inside the binary tree */ 
-void addToTree(t_node **p, char *w) {
+void addToTree(t_node **p, char *w, int o) {
     int cond;
 
     if (*p == NULL) {
