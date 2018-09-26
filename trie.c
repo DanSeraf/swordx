@@ -3,7 +3,6 @@
 #include <string.h>
 #include <assert.h>
 #include "trie.h"
-#include "bintree.h"
 
 static inline int getIndex(int character);
 static inline int getChar(int index);
@@ -69,20 +68,19 @@ void printTrie(trie *p, char word[WORD_SIZE], int level) {
     }
 }
 
-void insertToBinTree(trie *p, char word[WORD_SIZE], int level) {
+void sboTrie(trie *p, t_node **tr, char word[WORD_SIZE], int level) {
     assert(p != NULL);
-    t_node **root = createTree();
     
     if (p->count != 0) {
         word[level] = '\0';
-        addToTree(root) //TODO 
+        addToTree(tr, word, p->count);
     }
 
     int i;
     for (i = 0; i < ALPHA_SIZE; i++) {
         if (p->child[i] != NULL) {
             word[level] = getChar(i);
-            insertToBinTree(p->child[i], word, level + 1);
+            sboTrie(p->child[i], tr, word, level + 1);
         }
     }
 }

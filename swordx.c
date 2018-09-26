@@ -64,11 +64,16 @@ static inline void consumeChar(int n, char *word, FILE *f) {
 void run(args *options, unsigned int flag) {
     FILE *outfile;
     char word[512];
-    //t_node **root = createTree();
     trie *root = getNode();
     scanDir("./test", root, options, flag);
     outfile = getoutFile(options->output != NULL ? options->output : "swordx.out");
-    writeTrie(root, word, 0, outfile);
+    if (ISFLAGSET(sbo_flag, flag)){
+        t_node **tree_root = createTree();
+        sboTrie(root, tree_root, word, 0);
+        treePrint(*tree_root);
+        destroyTree(*tree_root);
+        free(tree_root);
+    } else writeTrie(root, word, 0, outfile);
     destroyTrie(root);
     fclose(outfile);
     
