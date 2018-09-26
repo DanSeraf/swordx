@@ -10,7 +10,6 @@
 #include <mcheck.h>
 #include "trie.h"
 #include "bintree.h"
-#include "linkedlist.h"
 
 #define recursive_flag  (1<<0)
 #define follow_flag     (1<<1)

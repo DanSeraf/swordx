@@ -1,8 +1,6 @@
 #ifndef BINTREE_H
 #define BINTREE_H
 
-#include "linkedlist.h"
-
 typedef struct t_node {
     char *word;
     unsigned int count; /* occurrences */
@@ -12,7 +10,6 @@ typedef struct t_node {
 
 t_node** createTree();
 void addToTree(t_node **root, char *word);    
-void addToList(t_node *root, l_list **head);
 void writeTree(t_node *root, FILE *outfile);
 void treePrint(t_node *root);
 void destroyTree(t_node *root);

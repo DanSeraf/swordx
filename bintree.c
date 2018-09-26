@@ -4,7 +4,6 @@
 #include <string.h>
 #include <errno.h>
 #include "bintree.h"
-#include "linkedlist.h"
 
 t_node **createTree(){
 	t_node **p = (t_node**) malloc(sizeof(t_node*));
@@ -44,14 +43,6 @@ void treePrint(t_node *p) {
         treePrint(p->left);
         printf("%4d %s\n", p->count, p->word);
         treePrint(p->right);
-    }
-}
-
-void addToList(t_node *p, l_list **h) {
-    if (p != NULL) {
-        addToList(p->left, h);
-        push(h, p->word, p->count);
-        addToList(p->right, h);
     }
 }
 
