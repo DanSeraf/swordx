@@ -1,9 +1,14 @@
+#ifndef LINKEDSTACK_H
+#define STACK_H
+
 typedef struct stack{
-	char *val;
+	char *val; // file name
 	struct stack * next;
 }stack;
 
-void print_stack(stack * head);
-void push(stack ** head, char * val);
-stack ** createStack();
-char *pop(stack ** head);
+stack **createStack();
+bool searchStack(stack *head, char *file_name);
+void push(stack **head, char *val);
+char *pop(stack **head);
+
+#endif

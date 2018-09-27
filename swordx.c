@@ -5,11 +5,15 @@
 #include <ctype.h>
 #include <stdbool.h>
 #include <dirent.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 #include <errno.h>
 #include <assert.h>
 #include <mcheck.h>
 #include "trie.h"
 #include "bintree.h"
+#include "linkedstack.h"
 
 #define recursive_flag  (1<<0)
 #define follow_flag     (1<<1)
@@ -20,6 +24,8 @@
 
 // return value are nonzero if flag is set
 #define ISFLAGSET(bitopt, flag) (flag & bitopt)
+// return value are nonzero if the last character of the input string contains an asterisk
+#define ASCHECK(string) ((char)string[strlen(string) - 1] == '*' ? 1 : 0)
 
 // struct to store optionss
 typedef struct args {
@@ -30,19 +36,22 @@ typedef struct args {
     unsigned int min;
 } args;
 
-void run(args *options, unsigned int flag);
-FILE *getFile(char *path); 
+void run(args *options, trie *root, unsigned int flag);
+FILE *getFile(const char *path); 
 FILE *getoutFile(char *filename);
+static inline char *rmNewline(char *name);
 static inline void consumeChar(int n, char *word, FILE *f);
 char *cleanWord(char *word);
 void scanFile(FILE *f, trie *root, args *options, unsigned int flag);
-void scanDir(const char *name, trie *root, args *options, unsigned int flag);
+void scanDir(const char *name, trie *root, stack *explude_head, unsigned int flag, args *options);
+void scanGlobal(const char *name, trie *root, stack *explude_head, unsigned int flag, args *options);
 bool isWordAlpha(char *word);
+void pushToLinkedStack(stack **explude_head, FILE *ef);
 void printUsage(void);
 void printHelp(void);
 
 // get file from a specific path
-FILE *getFile(char *path) {
+FILE *getFile(const char *path) {
     FILE *f = fopen(path, "r");
     if (f == NULL)
         perror("Error reading file");
@@ -56,16 +65,24 @@ FILE *getoutFile(char *fname) {
     return f;
 }
 
+static inline char *rmNewline(char *name) {
+    char *tmp;
+    tmp = strchr(name, '\n');
+    *tmp = '\0';
+    return name;
+}
+
 static inline void consumeChar(int n, char *word, FILE *f) {
     free(word);
     n = fscanf(f, "%*[^"WORDCLASS"]");
 }
 
-void run(args *options, unsigned int flag) {
+//TODO pass trie *root
+void run(args *options, trie *root, unsigned int flag) {
     FILE *outfile;
     char word[512];
-    trie *root = getNode();
-    scanDir("./test", root, options, flag);
+    //trie *root = getNode();
+    //scanDir("./test", root, options, flag);
     outfile = getoutFile(options->output != NULL ? options->output : "swordx.out");
     if (ISFLAGSET(sbo_flag, flag)){
         t_node **tree_root = createTree();
@@ -76,22 +93,6 @@ void run(args *options, unsigned int flag) {
     } else writeTrie(root, word, 0, outfile);
     destroyTrie(root);
     fclose(outfile);
-    
-    /*
-    if (ISFLAGSET(sbo_flag, flag) == 0)
-        writeTree(*root, outfile);
-    else {
-        l_list **head = createList();
-        addToList(*root, head);
-        sortByOccurrences(head);
-        writeList(*head, outfile);
-        //printList(*head);
-        destroyList(*head);
-        free(head);
-    }
-    destroyTree(*root);
-    free(root);
-    */
 }
 
 // check if word contains only alphabetic characters
@@ -119,30 +120,31 @@ void scanFile(FILE *f, trie *root, args *opt, unsigned int flag) {
             addToTrie(root, word);
             consumeChar(n, word, f);
         } else if (errno != 0)
-            perror("Error in scanf");
+            printf("scanf error: %s", strerror(errno));
     } while (n != EOF);
     fclose(f);
 }
 
 // check every file in directory, if recursive flag is set then
 // check the dir recursively
-void scanDir(const char *name, trie *root, args *opt, unsigned int flag) {
+void scanDir(const char *name, trie *root, stack *ex_head, unsigned int flag, args *opt) {
     FILE *f;
     DIR *dir;
     struct dirent *entry;
-
+    
     if (!(dir = opendir(name)))
         perror("Problem opening dir");
     
     while ((entry = readdir(dir)) != NULL) {
                 char path[1024];
-                if (entry->d_type == DT_DIR && ISFLAGSET(recursive_flag, flag) != 0) {
+                if (entry->d_type == DT_DIR && (ISFLAGSET(recursive_flag, flag) || ASCHECK(name))) { 
                     if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0) {
                         sprintf(path, "%s/%s", name, entry->d_name);
                         printf("dir path: %s\n", path);
-                        scanDir(path, root, opt, flag);
+                        scanDir(path, root, ex_head, flag, opt);
                     }
-                } else if (entry->d_type == DT_REG) {
+                } 
+                else if (entry->d_type == DT_REG && searchStack(ex_head, entry->d_name) == false) {
                     sprintf(path, "%s/%s", name, entry->d_name);
                     printf("file path: %s\n",  entry->d_name);
                     f = getFile(path);
@@ -152,29 +154,51 @@ void scanDir(const char *name, trie *root, args *opt, unsigned int flag) {
     closedir(dir);
 }
 
-void pushToLinkedStack(FILE *ef, stack **ex_head) {
-    char *explude_file_name = NULL;
-    ssize_t read;
+void scanGlobal(const char *name, trie *root, stack *ex_head, unsigned int flag, args *opt) {
+    struct stat fi;
+    FILE *f;
 
-    while ((read = getline(&explude_file_name, ef)) != -1) {
-        push(ex_head, explude_file_name);
+    if (stat(name, &fi) == -1) {
+        printf("stat error: %s", strerror(errno));
     }
 
-    fclose(ef);
-    if (explude_file_name)
-        free(explude_file_name_name);
+    switch (fi.st_mode & S_IFMT) {
+        case S_IFDIR: 
+            scanDir(name, root, ex_head, flag, opt);
+        case S_IFREG:
+            f = getFile(name);
+            scanFile(f, root, opt, flag);
+        case S_IFLNK:
+            //TODO follow link
+        default:
+            fprintf(stderr, "Unknown file type of %s\n", name);
+    }
 }
 
+void pushToLinkedStack(stack **ex_head, FILE *ef) {
+    char *explude_file_name = NULL;
+    size_t len = 0;
+    ssize_t read;
+
+    while ((read = getline(&explude_file_name, &len, ef)) != -1) {
+        explude_file_name = rmNewline(explude_file_name);
+        push(ex_head, explude_file_name);
+    }
+    
+    if (explude_file_name)
+        free(explude_file_name);
+    
+    fclose(ef);
+}
 
 int main (int argc, char **argv) {
     mtrace();
-    int opt = 0;
-    int long_index = 0;
+    int opt = 0, long_index = 0;
+    unsigned int flag = 0; /* byte flag */
     args *options = (struct args *) malloc(sizeof(struct args));
     stack **ex_head = createStack();
+    trie *root = getNode();
 
-    unsigned int flag = 0; /* byte flag */
-    
     static struct option long_options[] =
 	{
         {"help",                no_argument,        0,  'h'},
@@ -216,20 +240,17 @@ int main (int argc, char **argv) {
 				exit(EXIT_FAILURE);
 			}
 	}
-    // Remaining arguments (inputs)
     
-    
-    FILE *ef = getFile(options->explude);
-    pushToLinkedStack(*ef, ex_head);
-
-
+    if (options->explude != NULL) { 
+        FILE *ef = getFile(options->explude);
+        pushToLinkedStack(ex_head, ef);
+    }
     if (optind < argc) {
         printf("INPUTS\n");
         while (optind < argc) 
-            printf("%s\n", argv[optind++]);
-            //TODO put elements inside the struct
+            scanGlobal(argv[optind++], root, *ex_head, flag, options);
     }
-    run(options, flag);
+    run(options, root, flag);
     free(options);
     exit(EXIT_SUCCESS);
 }

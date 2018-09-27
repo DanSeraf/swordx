@@ -1,32 +1,35 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <stdbool.h>
 #include "linkedstack.h"
 
-stack ** createStack(){
+stack **createStack(){
 	stack ** head = (stack **) malloc(sizeof(stack));
 	*head = NULL;
 	return head;
 }
 
-void print_stack(stack * head){
-	stack * current = head;
+bool searchStack(stack *head, char *fn) {
+    stack *current = head;
 
-	while(current != NULL){
-		printf("%s\n", current->val);
-		current=current->next;
-
-	}
+    while(current != NULL) {
+        if (!strcmp(current->val, fn)) 
+            return true;
+        current = current->next;
+    }
+    return false;
 }
 
-void push(stack ** head, char * val) {
+void push(stack **head, char *val) {
     stack * new_node;
     new_node = (stack *)malloc(sizeof(stack));
-    new_node->val = val;
+    new_node->val = strdup(val);
     new_node->next = (*head);
     (*head) = new_node;
 }
 
-char *pop(stack ** head) {
+char *pop(stack **head) {
     char *retval;
     stack * next_node = NULL;
     next_node = (*head)->next;

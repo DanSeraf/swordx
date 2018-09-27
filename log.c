@@ -2,13 +2,13 @@
 #include <stdlib.h>
 #include <string.h>
 
-logger *createLogger() {
-    logger *l = (logger *) malloc(sizeof(logger));
+logger **createLogger() {
+    logger **l = (logger *) malloc(sizeof(logger));
     *l = NULL;
     return l;
 }
 
-void push(logger *l, char *fn, int cw, int iw, float time) {
+void push(logger **l, char *fn, int cw, int iw, float time) {
     logger *nextlog = (logger *) malloc(sizeof(logger));
     nextlog->filename = fn;
     nextlog->cword = cw;
@@ -18,7 +18,7 @@ void push(logger *l, char *fn, int cw, int iw, float time) {
 }
 
 void writeLog(logger *l) {
+
     if (l->nextlog != NULL) {
-        //TODO write log to file
     }
 }
