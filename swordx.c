@@ -312,5 +312,13 @@ void printUsage () {
 }
 
 void printHelp () {
-    printf("help\n");
+    printf("-r, --recursive,\t\t\t search directories and their contents recursively\n");
+    printf("-f, --follow,\t\t\t follow symbolic link\n");
+    printf("-a, --alpha,\t\t\t only alphabetic characters\n");
+    printf("-s, --sortbyoccurrency,\t\t\t order by occurencies\n");
+    printf("-e, --explude,\t\t\t file that contain a list of files to exclude\n");
+    printf("-m, --min,\t\t\t consider only words greater than or equal to the value given in input\n");
+    printf("-i, --ignore,\t\t\t ignore the words within the given input file \n");
+    printf("-l, --log,\t\t\t generate a log in a specific output file\n");
+    printf("-o, --output,\t\t\t generate a specific file where the words will be saved\n");
 }
