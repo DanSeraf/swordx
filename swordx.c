@@ -26,7 +26,7 @@
 // return value are nonzero if flag is set
 #define ISFLAGSET(bitopt, flag) (flag & bitopt)
 
-void run(args *options, trie *root, unsigned int flag);
+void writeOut(args *options, trie *root, unsigned int flag);
 FILE *getFile(const char *path); 
 FILE *getoutFile(char *filename);
 static inline char *rmNewline(char *name);
@@ -34,9 +34,9 @@ static inline void consumeChar(int n, char *word, FILE *f);
 static inline void toLow(char *word);
 static inline void closeFile(FILE *f);
 char *cleanWord(char *word);
-void scanFile(const char *file_name, trie *root, args *options, unsigned int flag);
-void scanDir(const char *name, trie *root, stack *explude_head, unsigned int flag, args *options);
-void scanGlobal(const char *name, trie *root, stack *explude_head, unsigned int flag, args *options);
+void scanFile(const char *file_name, trie *root, args *options, unsigned int flag, trie *ir);
+void scanDir(const char *name, trie *root, stack *explude_head, unsigned int flag, args *options, trie *ir);
+void scanGlobal(const char *name, trie *root, stack *explude_head, unsigned int flag, args *options, trie *ir);
 bool isWordAlpha(char *word);
 void pushToLinkedStack(stack **explude_head, FILE *ef);
 void printUsage(void);
@@ -80,7 +80,7 @@ static inline void closeFile(FILE *f) {
     }    
 }
 
-void run(args *options, trie *root, unsigned int flag) {
+void writeOut(args *options, trie *root, unsigned int flag) {
     FILE *outfile;
     char word[512];
     outfile = getoutFile(options->output != NULL ? options->output : "swordx.out");
@@ -105,8 +105,17 @@ bool isWordAlpha(char *w) {
     return true;
 }
 
+bool isWordAlphanum(char *w) {
+    do {
+        if (isalpha(*w) == 0 || isdigit(*w) == 0)
+            return false;
+    } while (*++w != '\0');
+
+    return true;
+}
+
 // scan file to add word inside the binary tree 
-void scanFile(const char *fn, trie *root, args *opt, unsigned int flag) {
+void scanFile(const char *fn, trie *root, args *opt, unsigned int flag, trie *ir) {
     FILE *f;
     char *word;
     int n;
@@ -118,7 +127,7 @@ void scanFile(const char *fn, trie *root, args *opt, unsigned int flag) {
         if (n == 1) {
             toLow(word); 
             printf("Word: %s\n", word);
-            if ((ISFLAGSET(alpha_flag, flag) && !isWordAlpha(word)) || (opt->min != 0 && strlen(word) < opt->min)) {
+            if ((ISFLAGSET(alpha_flag, flag) && !isWordAlpha(word)) || (opt->min != 0 && strlen(word) < opt->min) || (opt->ignore != NULL && searchTrie(ir, word))) {
                 consumeChar(n, word, f);
                 continue;
             }
@@ -132,7 +141,7 @@ void scanFile(const char *fn, trie *root, args *opt, unsigned int flag) {
 
 // check every file in directory, if recursive flag is set then
 // check the dir recursively
-void scanDir(const char *name, trie *root, stack *ex_head, unsigned int flag, args *opt) {
+void scanDir(const char *name, trie *root, stack *ex_head, unsigned int flag, args *opt, trie *ir) {
     DIR *dir;
     struct dirent *entry;
     
@@ -147,7 +156,7 @@ void scanDir(const char *name, trie *root, stack *ex_head, unsigned int flag, ar
                 strcat(path, entry->d_name);
                 strcat(path, "/");
                 printf("dir path: %s\n", path);
-                scanDir(path, root, ex_head, flag, opt);
+                scanDir(path, root, ex_head, flag, opt, ir);
                 free(path);
             }
         } 
@@ -155,7 +164,7 @@ void scanDir(const char *name, trie *root, stack *ex_head, unsigned int flag, ar
             strcpy(path, name);
             strcat(path, entry->d_name);
             printf("file path: %s\n",  path);
-            scanFile(path, root, opt, flag);
+            scanFile(path, root, opt, flag, ir);
             free(path);
         } 
         else if (entry->d_type == DT_LNK && ISFLAGSET(follow_flag, flag)) {
@@ -175,11 +184,11 @@ void scanDir(const char *name, trie *root, stack *ex_head, unsigned int flag, ar
 
                 switch (fi.st_mode & S_IFMT) {
                     case S_IFDIR:
-                        scanDir(abs_path, root, ex_head, flag, opt);
+                        scanDir(abs_path, root, ex_head, flag, opt, ir);
                         free(abs_path);
                         break;
                     case S_IFREG:
-                        scanFile(abs_path, root, opt, flag);
+                        scanFile(abs_path, root, opt, flag, ir);
                         free(abs_path);
                         break;
                     default:
@@ -191,7 +200,7 @@ void scanDir(const char *name, trie *root, stack *ex_head, unsigned int flag, ar
     closedir(dir);
 }
 
-void scanGlobal(const char *name, trie *root, stack *ex_head, unsigned int flag, args *opt) {
+void scanGlobal(const char *name, trie *root, stack *ex_head, unsigned int flag, args *opt, trie *ir) {
     struct stat fi;
     char *actual_path;
 
@@ -202,17 +211,17 @@ void scanGlobal(const char *name, trie *root, stack *ex_head, unsigned int flag,
     switch (fi.st_mode & S_IFMT) {
         case S_IFDIR:
             if (ISFLAGSET(recursive_flag, flag))
-                scanDir(name, root, ex_head, flag, opt);
+                scanDir(name, root, ex_head, flag, opt, ir);
             break;
         case S_IFREG:
-            scanFile(name, root, opt, flag);
+            scanFile(name, root, opt, flag, ir);
             break;
         case S_IFLNK:
             if (ISFLAGSET(follow_flag, flag)) {
                 errno = 0;
                 actual_path = realpath(name,NULL);
                 if(actual_path!=NULL){
-                    scanGlobal(actual_path, root, ex_head, flag, opt);
+                    scanGlobal(actual_path, root, ex_head, flag, opt, ir);
                     free(actual_path);
                 } else printf("symbolic link error: %s", strerror(errno)); 
             }
@@ -230,12 +239,28 @@ void pushToLinkedStack(stack **ex_head, FILE *ef) {
     while ((read = getline(&explude_file_name, &len, ef)) != -1) {
         explude_file_name = rmNewline(explude_file_name);
         push(ex_head, explude_file_name);
+        if (explude_file_name)
+            free(explude_file_name);
     }
     
-    if (explude_file_name)
-        free(explude_file_name);
-    
     fclose(ef);
+}
+
+void createIgnoreTrie(trie *p, FILE *igf) {
+    char *ignore_word = NULL;
+    size_t len = 0;
+    ssize_t read;
+
+    while ((read = getline(&ignore_word, &len, igf)) != -1) {
+        ignore_word = rmNewline(ignore_word);
+        toLow(ignore_word);
+        if (!isWordAlphanum(ignore_word))
+            addToTrie(p, ignore_word);
+        if (ignore_word)
+            free(ignore_word);
+    }
+
+    fclose(igf);
 }
 
 int main (int argc, char **argv) {
@@ -246,6 +271,7 @@ int main (int argc, char **argv) {
     initializeArgs(options);
     stack **ex_head = createStack();
     trie *root = getNode();
+    trie *ignore_root = getNode();
 
     static struct option long_options[] =
 	{
@@ -295,14 +321,21 @@ int main (int argc, char **argv) {
        pushToLinkedStack(ex_head, ef);
     }
     
+    if (options->ignore != NULL) {
+        FILE *igf;
+        igf = getFile(options->ignore);
+        createIgnoreTrie(ignore_root, igf);
+    }
+
     if (optind < argc) {
         while (optind < argc) {
             char *input = strdup(argv[optind++]);
-            scanGlobal(input, root, *ex_head, flag, options);
+            scanGlobal(input, root, *ex_head, flag, options, ignore_root);
             free(input);
         }
     }
-    run(options, root, flag);
+    writeOut(options, root, flag);
+    destroyTrie(ignore_root);
     destroyArgs(options);
     exit(EXIT_SUCCESS);
 }

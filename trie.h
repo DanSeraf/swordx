@@ -13,9 +13,9 @@ typedef struct trie {
 
 trie *getNode(void);
 void addToTrie(trie *root, const char *word);
-void printTrie(trie *root, char word[WORD_SIZE], int level);
 void sboTrie(trie *root, t_node **tree_root, char word[WORD_SIZE], int level);
-void writeTrie(trie *root, char wrod[WORD_SIZE], int level, FILE *file_name);
+bool searchTrie(trie *root, const char *word);
+void writeTrie(trie *root, char word[WORD_SIZE], int level, FILE *file_name);
 void destroyTrie(trie *root);
 
 #endif

@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 #include <assert.h>
 #include "trie.h"
 
@@ -51,23 +52,6 @@ void addToTrie(trie *p, const char *w) {
     next->count += 1;
 }   
 
-void printTrie(trie *p, char word[WORD_SIZE], int level) {
-    assert(p != NULL);
-
-    if (p->count != 0) {
-        word[level] = '\0';
-        printf("%s %d\n", word, p->count);
-    }
-
-    int i;
-    for (i = 0; i < ALPHA_SIZE; i++) {
-        if (p->child[i] != NULL) {
-            word[level] = getChar(i);
-            printTrie(p->child[i], word, level + 1);
-        }
-    }
-}
-
 void sboTrie(trie *p, t_node **tr, char word[WORD_SIZE], int level) {
     assert(p != NULL);
     
@@ -83,6 +67,22 @@ void sboTrie(trie *p, t_node **tr, char word[WORD_SIZE], int level) {
             sboTrie(p->child[i], tr, word, level + 1);
         }
     }
+}
+
+bool searchTrie(trie *p, const char *w) {
+    assert(p != NULL);
+    int index;
+    int lev;
+    trie *curr = p;
+
+    for (lev = 0; lev < strlen(w); lev++) {
+        index = getIndex(w[lev]);
+        if(!curr->child[index])
+            return false;
+
+        curr = curr->child[index];
+    }
+    return true;
 }
 
 void writeTrie(trie *p, char word[WORD_SIZE], int level, FILE *f) {
