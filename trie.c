@@ -25,15 +25,15 @@ static inline int getIndex(int c) {
     if (c >= 97 && c <= 122) 
         return c - 'a';
     else 
-        return c - 21;
+        return c - 22;
 }
 
 // Get char from index according to ascii table
 static inline int getChar(int i) {
-    if (i >= 0 && i <= 27) 
+    if (i >= 0 && i <= 25) 
         return i + 'a';
     else 
-        return i + 21;
+        return i + 22;
 }
 
 void addToTrie(trie *p, const char *w) {

@@ -14,6 +14,7 @@
 #include "trie.h"
 #include "bintree.h"
 #include "linkedstack.h"
+#include "args.h"
 
 #define recursive_flag  (1<<0)
 #define follow_flag     (1<<1)
@@ -24,15 +25,6 @@
 
 // return value are nonzero if flag is set
 #define ISFLAGSET(bitopt, flag) (flag & bitopt)
-
-// struct to store optionss
-typedef struct args {
-    char *explude;
-    char *ignore;
-    char *log;
-    char *output;
-    unsigned int min;
-} args;
 
 void run(args *options, trie *root, unsigned int flag);
 FILE *getFile(const char *path); 
@@ -248,14 +240,12 @@ void pushToLinkedStack(stack **ex_head, FILE *ef) {
 
 int main (int argc, char **argv) {
     mtrace();
-    FILE *ef;
     int opt = 0, long_index = 0;
     unsigned int flag = 0; /* byte flag */
     args *options = (struct args *) malloc(sizeof(struct args));
+    initializeArgs(options);
     stack **ex_head = createStack();
     trie *root = getNode();
-    //TODO Initialize args struct (valgrind problem)
-    options->min = 0;
 
     static struct option long_options[] =
 	{
@@ -285,8 +275,6 @@ int main (int argc, char **argv) {
             case 's': flag |= sbo_flag;
                 break;
             case 'e': options->explude = strdup(optarg);
-                ef = getFile(options->explude);
-                pushToLinkedStack(ex_head, ef);
                 break;
             case 'm': options->min = atoi(optarg);
                 break; 
@@ -300,6 +288,12 @@ int main (int argc, char **argv) {
 				exit(EXIT_FAILURE);
 			}
 	}
+
+    if (options->explude != NULL) {
+       FILE *ef; 
+       ef = getFile(options->explude);
+       pushToLinkedStack(ex_head, ef);
+    }
     
     if (optind < argc) {
         while (optind < argc) {
@@ -309,7 +303,7 @@ int main (int argc, char **argv) {
         }
     }
     run(options, root, flag);
-    free(options);
+    destroyArgs(options);
     exit(EXIT_SUCCESS);
 }
 
