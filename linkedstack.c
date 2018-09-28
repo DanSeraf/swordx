@@ -29,13 +29,4 @@ void push(stack **head, char *val) {
     (*head) = new_node;
 }
 
-char *pop(stack **head) {
-    char *retval;
-    stack * next_node = NULL;
-    next_node = (*head)->next;
-    retval = (*head)->val;
-    free(*head);
-    *head = next_node;
-
-    return retval;
-}
+//TODO destroy struct
