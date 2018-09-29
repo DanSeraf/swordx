@@ -24,7 +24,7 @@ void writeLog(logger *l, FILE *log) {
     logger *curr = l;
 
     while (curr != NULL) {
-        fprintf(log, "%s %d %d %f\n", curr->filename, curr->cword, curr->iword, curr->time);
+        fprintf(log, "%s %d %d %.2f\n", curr->filename, curr->cword, curr->iword, curr->time);
         curr = curr->nextlog;
     }
 }

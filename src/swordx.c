@@ -34,7 +34,6 @@ FILE *getoutFile(char *filename);
 static inline char *rmNewline(char *name);
 static inline void consumeChar(int n, char *word, FILE *f);
 static inline void toLow(char *word);
-static inline void closeFile(FILE *f);
 char *cleanWord(char *word);
 void scanFile(const char *file_name, trie *root, args *options, unsigned int flag, trie *ir, logger **log_head);
 void scanDir(const char *name, trie *root, stack *explude_head, unsigned int flag, args *options, trie *ir, logger **log_head);
@@ -75,13 +74,6 @@ static inline void toLow(char *w) {
     for ( ; *w; ++w) *w = tolower(*w);
 }
 
-static inline void closeFile(FILE *f) {
-    errno = 0;
-    if (fclose(f) == EOF){
-        printf("Error closing file: %s\n", strerror(errno));
-    }    
-}
-
 void writeOut(args *options, trie *root, unsigned int flag, logger *log_head) {
     FILE *outfile;
     char word[512];
@@ -89,7 +81,7 @@ void writeOut(args *options, trie *root, unsigned int flag, logger *log_head) {
     if (ISFLAGSET(sbo_flag, flag)){
         t_node **tree_root = createTree();
         sboTrie(root, tree_root, word, 0);
-        treePrint(*tree_root);
+        writeTree(*tree_root, outfile);
         destroyTree(*tree_root);
         free(tree_root);
     } else writeTrie(root, word, 0, outfile);
@@ -147,11 +139,11 @@ void scanFile(const char *fn, trie *root, args *opt, unsigned int flag, trie *ir
         } else if (errno != 0)
             printf("scanf error: %s", strerror(errno));
     } while (n != EOF);
-    closeFile(f);
     t = clock() - t;
     if (opt->log != NULL) {
         pushLog(log_head, fn, cword, iword, t);  
     }
+    fclose(f);
 }
 
 // check every file in directory
@@ -356,17 +348,19 @@ int main (int argc, char **argv) {
 }
 
 void printUsage () {
-	printf("USAGE: ./swordx [OPTIONS] [INPUTS]");
+	printf("USAGE: swordx [OPTIONS] [INPUTS]");
 }
 
 void printHelp () {
-    printf("-r, --recursive,\t\t\t search directories and their contents recursively\n");
-    printf("-f, --follow,\t\t\t follow symbolic link\n");
-    printf("-a, --alpha,\t\t\t only alphabetic characters\n");
-    printf("-s, --sortbyoccurrency,\t\t\t order by occurencies\n");
-    printf("-e, --explude,\t\t\t file that contain a list of files to exclude\n");
-    printf("-m, --min,\t\t\t consider only words greater than or equal to the value given in input\n");
-    printf("-i, --ignore,\t\t\t ignore the words within the given input file \n");
-    printf("-l, --log,\t\t\t generate a log in a specific output file\n");
-    printf("-o, --output,\t\t\t generate a specific file where the words will be saved\n");
+    printf("Usage: swordx [OPTIONS] [INPUTS]\n");
+    printf("Count occurrences of INPUTS\n\n");
+    printf("-r, --recursive,\t\tsearch directories and their contents recursively\n");
+    printf("\t-f, --follow,\t\t\tfollow symbolic link\n");
+    printf("\t-a, --alpha,\t\t\tonly alphabetic characters\n");
+    printf("\t-s, --sortbyoccurrency,\t\torder by occurencies\n");
+    printf("\t-e, --explude,\t\t\tfile that contain a list of files to exclude\n");
+    printf("\t-m, --min,\t\t\tconsider only words greater than or equal to the value given in input\n");
+    printf("\t-i, --ignore,\t\t\tignore the words within the given input file \n");
+    printf("\t-l, --log,\t\t\tgenerate a log in a specific output file\n");
+    printf("\t-o, --output,\t\t\tgenerate a specific file where the words will be saved\n\n");
 }

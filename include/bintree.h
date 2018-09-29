@@ -9,9 +9,8 @@ typedef struct t_node {
 } t_node;
 
 t_node** createTree();
-void addToTree(t_node **tree_root, char *word, int o);    
+void addToTree(t_node **tree_root, char *word, unsigned int o);    
 void writeTree(t_node *tree_root, FILE *outfile);
-void treePrint(t_node *tree_root);
 void destroyTree(t_node *tree_root);
 
 #endif

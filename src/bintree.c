@@ -12,7 +12,7 @@ t_node **createTree(){
 }
 
 /* Add word inside the binary tree */ 
-void addToTree(t_node **p, char *w, int o) {
+void addToTree(t_node **p, char *w, unsigned int o) {
     if (*p == NULL) {
         *p = (t_node *) malloc(sizeof(t_node));
         (*p)->word = strdup(w);
@@ -30,15 +30,6 @@ void writeTree(t_node *p, FILE *f) {
         writeTree(p->left, f);
         fprintf(f, "%s %d\n", p->word, p->count);
         writeTree(p->right, f);
-    }
-    fclose(f);
-}
-
-void treePrint(t_node *p) {
-    if (p != NULL) {
-        treePrint(p->left);
-        printf("%4d %s\n", p->count, p->word);
-        treePrint(p->right);
     }
 }
 
