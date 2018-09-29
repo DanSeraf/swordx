@@ -87,7 +87,7 @@ void writeOut(args *options, trie *root, unsigned int flag, logger *log_head) {
     } else writeTrie(root, word, 0, outfile);
     if (options->log != NULL) {
         FILE *outlog;
-        outlog = getoutFile(options->log != NULL ? options->log : "out.log");
+        outlog = getoutFile(options->log);
         writeLog(log_head, outlog);
     }
     destroyTrie(root);
@@ -119,7 +119,7 @@ void scanFile(const char *fn, trie *root, args *opt, unsigned int flag, trie *ir
     t = clock();
     FILE *f;
     char *word;
-    int n, iword, cword;
+    int n, iword = 0, cword = 0;
     errno = 0;
     f = getFile(fn);
     do {
