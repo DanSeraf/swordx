@@ -34,7 +34,6 @@ FILE *getoutFile(char *filename);
 static inline char *rmNewline(char *name);
 static inline void consumeChar(int n, char *word, FILE *f);
 static inline void toLow(char *word);
-char *cleanWord(char *word);
 void scanFile(const char *file_name, trie *root, args *options, unsigned int flag, trie *ir, logger **log_head);
 void scanDir(const char *name, trie *root, stack *explude_head, unsigned int flag, args *options, trie *ir, logger **log_head);
 void scanGlobal(const char *name, trie *root, stack *explude_head, unsigned int flag, args *options, trie *ir, logger **log_head);
