@@ -127,7 +127,9 @@ void scanFile(const char *fn, trie *root, args *opt, unsigned int flag, trie *ir
         if (n == 1) {
             toLow(word); 
             printf("Word: %s\n", word);
-            if ((ISFLAGSET(alpha_flag, flag) && !isWordAlpha(word)) || (opt->min != 0 && strlen(word) < opt->min) || (opt->ignore != NULL && searchTrie(ir, word))) {
+            if ((ISFLAGSET(alpha_flag, flag) && !isWordAlpha(word)) 
+                    || (opt->min != 0 && strlen(word) < opt->min) 
+                    || (opt->ignore != NULL && searchTrie(ir, word))) {
                 consumeChar(n, word, f);
                 iword++;
                 continue;
@@ -154,9 +156,9 @@ void scanDir(const char *name, trie *root, stack *ex_head, unsigned int flag, ar
         perror("Problem opening dir");
     
     while ((entry = readdir(dir)) != NULL) {
-        char *path = (char *) malloc(strlen(name)+strlen(entry->d_name) + 2);
         if (entry->d_type == DT_DIR) { 
             if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0) {
+                char *path = (char *) malloc(strlen(name)+strlen(entry->d_name) + 2);
                 strcpy(path, name);
                 strcat(path, entry->d_name);
                 strcat(path, "/");
@@ -166,6 +168,7 @@ void scanDir(const char *name, trie *root, stack *ex_head, unsigned int flag, ar
             }
         } 
         else if (entry->d_type == DT_REG && searchStack(ex_head, entry->d_name) == false) {
+            char *path = (char *) malloc(strlen(name)+strlen(entry->d_name) + 2);
             strcpy(path, name);
             strcat(path, entry->d_name);
             printf("file path: %s\n",  path);
@@ -173,12 +176,12 @@ void scanDir(const char *name, trie *root, stack *ex_head, unsigned int flag, ar
             free(path);
         } 
         else if (entry->d_type == DT_LNK && ISFLAGSET(follow_flag, flag)) {
+            char *path = (char *) malloc(strlen(name)+strlen(entry->d_name) + 2);
             char *abs_path;
             strcpy(path, name);
             strcat(path, entry->d_name);
             abs_path = realpath(path, NULL);
             printf("abs path %s\n", abs_path);
-            free(path);
 
             if(abs_path!=NULL) {
                 struct stat fi;
@@ -199,8 +202,9 @@ void scanDir(const char *name, trie *root, stack *ex_head, unsigned int flag, ar
                     default:
                         fprintf(stderr, "Unknown file type of %s\n", name);
                 }
-            } else printf("symbolic link error: %s", strerror(errno)); 
-        }
+            } else printf("symbolic link error: %s", strerror(errno));
+            free(path);
+        } 
     }
     closedir(dir);
 }
